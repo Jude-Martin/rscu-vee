@@ -1,0 +1,809 @@
+---
+title: "codon bias markdown"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library (data.table)
+library(BiocGenerics)
+library(S4Vectors)
+library(XVector)
+library(Biostrings)
+library(IRanges)
+library(readr)
+
+
+
+# define variables
+
+
+#positions of open reading frames, note these correspond to tsv files, check if using new input 
+
+orfa <-c(44,7540,1,1)
+orf2 <-c(7576,11340,1,1)
+orftf <-c(9978,10058,1,1)
+    
+    
+    
+    
+#Define genes and features    
+nsp1<-c(44,1648,1,1)
+nsp2<-c(1649,4030,1,1)
+nsp3<-c(4031,5698,1,1)
+nsp4<-c(5699,7540,1,1)
+capsid<-c(7576,8397,1,1)
+e1<-c(10012,11340,1,1)
+e2<-c(8575,9843,1,1)
+e3<-c(8398,8574,1,1)
+utr3<-c(11341,11464,1,1)
+utr5<-c(1,43,1,1)
+k6<-c(9844,10011,1,1)
+tf<-c(9975,10058,1,1)
+
+
+nsp1mod1<-c(44,664,2,1)
+nsp1mod2<-c(686,1648,2,2)
+
+nsp4mod1<-c(5699,5737,4,1) 
+nsp4mod2<-c(5741,5797,4,2)
+nsp4mod3<-c(5819,7159,4,3)
+nsp4mod4<-c(7163,7540,4,4)
+    
+region<-c("orfa","orf2","orftf","nsp1","nsp2","nsp3","nsp4","capsid","e1","e2","e3","k6","tf","nsp1mod1","nsp1mod2","nsp4mod1","nsp4mod2","nsp4mod3","nsp4mod4")
+ 
+#Will need to define a gapped region or region made up of multiple sections
+    
+region_start <- c(orfa[1],orf2[1],orftf[1],nsp1[1],nsp2[1],nsp3[1],nsp4[1],capsid[1],e1[1],e2[1],e3[1],k6[1],tf[1],nsp1mod1[1],nsp1mod2[1],nsp4mod1[1],nsp4mod2[1],nsp4mod3[1],nsp4mod4[1])
+    
+region_stop <- c(orfa[2],orf2[2],orftf[2],nsp1[2],nsp2[2],nsp3[2],nsp4[2],capsid[2],e1[2],e2[2],e3[2],k6[2],tf[2],nsp1mod1[2],nsp1mod2[2],nsp4mod1[2],nsp4mod2[2],nsp4mod3[2],nsp4mod4[2])
+    
+region_sections <- c(orfa[3],orf2[3],orftf[3],nsp1[3],nsp2[3],nsp3[3],nsp4[3],capsid[3],e1[3],e2[3],e3[3],k6[3],tf[3],nsp1mod1[3],nsp1mod2[3],nsp4mod1[3],nsp4mod2[3],nsp4mod3[3],nsp4mod4[3])
+    
+region_order <- c(orfa[3],orf2[3],orftf[3],nsp1[3],nsp2[3],nsp3[3],nsp4[3],capsid[3],e1[3],e2[3],e3[3],k6[3],tf[3],nsp1mod1[3],nsp1mod2[3],nsp4mod1[3],nsp4mod2[3],nsp4mod3[3],nsp4mod4[3])
+    
+    
+#create dataframe to define regions
+df_regions<-data.frame(region,region_start,region_stop,region_sections,region_order)
+    
+#length of regions by count of codons
+df_regions$length<-((region_stop-region_start+1)/3)
+    
+#defining amino acids in aatable
+    
+aa<-c("alanine","arganine","asparagine","aspartate","cysteine","glutamine","glutamate","glycine","histidine","isoleucine","leucine","lysine","methionine","phenylalanine","proline","serine","threonine","tryptophan","tyrosine","valine","stop")
+    
+aashort<- c("A","R","N","D","C","Q","E","G","H","I","L","K","M","F","P","S","T","W","Y","V","Stop")
+    
+codons<-c("GCT,GCC,GCA,GCG","CGT,CGC,CGA,CGG,AGA,AGG","AAT,AAC","GAT,GAC","TGT,TGC","CAA,CAG","GAA,GAG","GGT,GGC,GGA,GGG","CAT,CAC","ATT,ATC,ATA","CTT,CTC,CTA,CTG,TTA,TTG","AAA,AAG","ATG","TTT,TTC","CCT,CCC,CCA,CCG","TCA,TCC,TCT,TCG,AGT,AGC","ACA,ACT,ACG,ACC","TGG","TAC,TAT","GTA,GTC,GTT,GTG","TGA,TAG,TAA")
+    
+aatable <- data.frame(aa,aashort,codons)
+
+all_codon_st<-paste(codons, collapse=',' )
+col1<-strsplit(all_codon_st,",")
+all_codon_st<- gsub('[ ,]','',all_codon_st)
+coldna<-DNAString(all_codon_st)
+col2<-translate(coldna)   
+
+# files to load from a specified directory 
+    
+files <- list.files(path="../Codon Bias Data/in vivo/d4um", pattern="*.tsv", full.names=TRUE, recursive=FALSE)
+  
+# parse into temp df record subs
+# use fread from data.table to make a temp dataframe with required data
+
+#looping through files in directory
+#Loop 1
+     
+    for (filenumber in 1:length(files))
+  
+  {
+  # reading columns frm file
+      
+  temp <- fread(files[filenumber],select=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17),fill=TRUE,sep = "\t")
+  
+  #having issues reading in vivo files?  Check that  this may be due to zero values? 
+  # getting name for file being worked on
+  
+  workingfile<-files[filenumber]
+  
+  #trimming file names
+  workingfile<-gsub("../Codon Bias Data/in vivo/d4um","",workingfile)
+  workingfile<-gsub(".snp_diversity_cal_threshold_10.tsv","",workingfile)
+  #do translation next
+  
+  
+  #loop here to go through regions
+  
+  #Do translation of base sequence This is working
+  # Base is ref sequence values at each position from file,gsub cuts out commas 
+  
+  seq <- toString(temp$Base)
+  seq<- gsub('[ ,]','',seq)
+
+  #Setup dataframe of all codons grouped by aa
+  # get all 64 codons moving this outside of loop
+
+  #all_codon_st<-paste(codons, collapse=',' )
+  #col1<-strsplit(all_codon_st,",")
+  #all_codon_st<- gsub('[ ,]','',all_codon_st)
+
+  #coldna<-DNAString(all_codon_st)
+  #col2<-translate(coldna)
+
+  #Have to make entries sequentially into this table and then save/write it 
+
+
+  #make a dataframe for results
+  df_results_by_codon<-data.frame(col1,"AA"=col2)
+
+  #add columns with 0 values
+  df_results_by_codon$syn_count<-0
+  df_results_by_codon$codon_count<-0
+  df_results_by_codon$syn_sum<-0
+  #df_results_by_codon$RSCU<-0
+
+  #renaming first column
+  names(df_results_by_codon)[1]<-"codon"
+
+  #use names to make a lookuptable type thing
+  codon_synonym_count <-as.data.frame(table(unlist(df_results_by_codon$AA)))
+  cods<-codon_synonym_count$Var1
+  names(cods)<-codon_synonym_count$Freq
+  
+  #Loop 2 
+  for(r_length in 1:length(df_results_by_codon$AA))
+
+    {
+
+    #populate the synonymous count
+    val<-df_results_by_codon$AA[r_length]
+    lookup<-names(cods)[val]
+  
+    df_results_by_codon$syn_count[r_length]<-lookup
+    } 
+
+  #fullseq <- DNAString(seq)
+  #codonsfull <- translate(fullseq)
+
+
+  #trans1 <- toString(temp$Base[44:7540])
+  #trans1 <- gsub('[ ,]','',trans1)
+  #trans1 <-DNAString(trans1)
+  #trans1x <-translate(trans1)
+  #trans2 <- toString(temp$Base[7576:11340])
+  #trans2 <- gsub('[ ,]','',trans2)
+  #trans2 <-DNAString(trans2)
+  #trans2x <-translate(trans2)
+  #transtf <- toString(temp$Base[9978:10058])
+  #transtf <- gsub('[ ,]','',transtf)
+  #transtf <-DNAString(transtf)
+  #transtfx <-translate(transtf)
+
+
+  #translate
+
+  #Choose which orf to use
+  #loop through orfs,genes here
+  #Need to do something here to define/handle gapped regions
+
+  #Loop 3
+  for (region_gene in 1:length(df_regions$region)) 
+    {
+    #Can this next line be expanded to sections?
+  
+    orfcount<-df_regions$length[region_gene]
+
+    # Is there something here to fix?
+
+    transl <-toString(temp$Base[df_regions$region_start[region_gene]:df_regions$region_stop[region_gene]])
+
+    transl <- gsub('[ ,]','',transl)
+
+    transl <-DNAString(transl)
+
+    translation <-translate(transl)
+
+    orf<-df_regions$region[region_gene]
+
+    thisorf<-as.character(orf)
+
+    #Used to set up dataframe
+    m<-matrix(data=c(0,0,0,0,0,0,0,0,0,0,0,0),nrow=3,ncol=4)
+
+    consen <- strsplit(as.character(translation),"")
+
+    position <-(1:orfcount)
+
+    for (f in 1:3)
+      {
+      assign(paste0('f', f,'a'), as.numeric(rep(0,times=orfcount)))
+      assign(paste0('f', f,'c'), as.numeric(rep(0,times=orfcount)))
+      assign(paste0('f', f,'g'), as.numeric(rep(0,times=orfcount)))
+      assign(paste0('f', f,'t'), as.numeric(rep(0,times=orfcount)))
+    
+      assign(paste0('p', f,'a'), as.numeric(rep(0,times=orfcount)))
+      assign(paste0('p', f,'c'), as.numeric(rep(0,times=orfcount)))
+      assign(paste0('p', f,'g'), as.numeric(rep(0,times=orfcount)))
+      assign(paste0('p', f,'t'), as.numeric(rep(0,times=orfcount)))
+      }
+
+    #generate dataframe orfdf with numeric positions in orf, this is translated sequence, consensus sequence, frequencies of       nucleotides at position, probabilities of nucleotides at position   
+
+    orfdf<-data.frame(position,consen,f1a,f1c,f1g,f1t,p1a,p1c,p1g,p1t,f2a,f2c,f2g,f2t,p2a,p2c,p2g,p2t,f3a,f3c,f3g,f3t,p3a,p3c,p3g,p3t,stringsAsFactors = FALSE)
+
+
+
+
+    ## generate codon probabilities from matrix of base values This works
+  
+
+    orfstart <-df_regions$region_start[region_gene]
+    orfend <- df_regions$region_stop[region_gene]
+
+    for (p in seq(orfstart,orfend,by=3))
+      {
+  
+      p1 <- p
+      p2 <- p+1
+      p3 <- p+2
+  
+      #mc 3x4 matrix of counts  
+  
+      mc <- matrix(nrow=3,ncol=4, dimnames = list  (c("pos1","pos2","pos3"),c("A","C","G","T")))
+      #mp 3x4 matrix of probabilities
+  
+      mp <- matrix(nrow=3,ncol=4,dimnames = list  (c("pos1","pos2","pos3"),c("p(A)","p(C)","p(G)","p(T)")))
+  
+      for (c_pos in p1:p3)
+        {
+        total <- sum (temp[c_pos,3:12])
+        cbase <- temp$Base [c_pos]
+    
+        # debug section
+        # print (pos1total)
+        # print (cbase)
+    
+        acount <-temp$`Sub A` [c_pos]
+        ccount <-temp$`Sub C` [c_pos]
+        gcount <-temp$`Sub G` [c_pos]
+        tcount <-temp$`Sub T` [c_pos]
+   
+
+        if (cbase == 'A'){acount=temp$PM[c_pos]  + acount}
+        if (cbase == 'C'){ccount=temp$PM[c_pos]  + ccount}
+        if (cbase == 'G'){gcount=temp$PM[c_pos] + gcount}
+        if (cbase == 'T'){tcount=temp$PM[c_pos]  + tcount}
+    
+        #vector and matrix entry of counts
+        vc <- c(acount,ccount,gcount,tcount)
+        #assign counts to matrix
+        mc [(c_pos%%p1)+1,] <-vc
+  
+        pa <- as.double(acount/total)
+        pa[is.na(pa)]<-0
+  
+        pc <- as.double(ccount/total)
+        pc[is.na(pc)]<-0
+  
+        pg <- as.double(gcount/total)
+        pg[is.na(pg)]<-0
+  
+        pt <- as.double(tcount/total)
+        pt[is.na(pt)]<-0
+   
+        # vector and matrix entry of probabilities
+  
+        vp <-c(pa,pc,pg,pt)
+
+        # assign probabilities to matrix  
+        mp [(c_pos%%p1)+1,] <-vp
+  
+ 
+        }
+
+      # orfdf[dfnum,"mp"] <-mp
+  
+      dfnum <-(((p-orfstart)/3)+1)
+ 
+      orfdf[dfnum,"p1a"] <- mp[1,1]
+      orfdf[dfnum,"p1c"] <- mp[1,2]
+      orfdf[dfnum,"p1g"] <- mp[1,3]
+      orfdf[dfnum,"p1t"] <- mp[1,4]
+  
+      orfdf[dfnum,"f1a"] <- mc[1,1]
+      orfdf[dfnum,"f1c"] <- mc[1,2]
+      orfdf[dfnum,"f1g"] <- mc[1,3]
+      orfdf[dfnum,"f1t"] <- mc[1,4]
+  
+      orfdf[dfnum,"p2a"] <- mp[2,1]
+      orfdf[dfnum,"p2c"] <- mp[2,2]
+      orfdf[dfnum,"p2g"] <- mp[2,3]
+      orfdf[dfnum,"p2t"] <- mp[2,4]
+  
+      orfdf[dfnum,"f2a"] <- mc[2,1]
+      orfdf[dfnum,"f2c"] <- mc[2,2]
+      orfdf[dfnum,"f2g"] <- mc[2,3]
+      orfdf[dfnum,"f2t"] <- mc[2,4]
+  
+      orfdf[dfnum,"p3a"] <- mp[3,1]
+      orfdf[dfnum,"p3c"] <- mp[3,2]
+      orfdf[dfnum,"p3g"] <- mp[3,3]
+      orfdf[dfnum,"p3t"] <- mp[3,4]
+  
+      orfdf[dfnum,"f3a"] <- mc[3,1]
+      orfdf[dfnum,"f3c"] <- mc[3,2]
+      orfdf[dfnum,"f3g"] <- mc[3,3]
+      orfdf[dfnum,"f3t"] <- mc[3,4]
+ 
+  
+  
+  
+      }
+ 
+    # checked orfdf files, seem to be generating them ok, but may have issue with summation of values and rounding errors changed   sum/count section to integer values, represents ok in tables
+
+    ##This works now
+    #need to swap in "Stop" for asterix otherwise things go screwy in orfdf
+
+    orfdf[orfdf == "*"] <- "Stop"
+
+    #write orfdf to file for error checking
+    #write.csv(orfdf, paste0("4041test/",region_gene,"orfdf.csv"), row.names=FALSE, quote=FALSE)
+
+    syn_codons<-as.character(rep("NA",times=orfcount),stringsAsFactors = FALSE)
+
+    #df_output handling starts here
+
+
+    df_output<-data.frame(orfdf[,2],syn_codons,stringsAsFactors = FALSE)
+    #Next part loops through orfdf
+    #cthing will be codon
+
+    for (row_numbers in 1:nrow(orfdf))
+      {
+      cthing<-(orfdf[row_numbers,2])
+      
+      syn_list<- as.character(aatable$codons[aatable$aashort==cthing])
+    
+      df_output[row_numbers,2]<-syn_list
+      }
+
+
+
+    #This works
+
+    #Use probabilities as weights in RSCU calculation
+    #RSCU=(number of codons coding aa)*(count of particular codon)/sum(total count of all synonymous codons)
+    #Neep to Display as some kind of heatmap or bar diagram/histogram
+
+    #Adding columns to output df
+    #C columns for codon V columns for count of each
+
+    df_output$C1<-"NA"
+    df_output$C2<-"NA"
+    df_output$C3<-"NA"
+    df_output$C4<-"NA"
+    df_output$C5<-"NA"
+    df_output$C6<-"NA"
+
+
+    df_output$V1<-as.double(0)
+    df_output$V2<-as.double(0)
+    df_output$V3<-as.double(0)
+    df_output$V4<-as.double(0)
+    df_output$V5<-as.double(0)
+    df_output$V6<-as.double(0)
+
+    # identify probability of each variant codon
+    #Issue must be occuring somewhere in this section?
+
+    #working through df_output row by row
+    for (output_row in 1:nrow(df_output))
+      {
+      #split codon list into individual codons
+  
+      tocut<-df_output$syn_codons[output_row]
+      
+      #making a list of synonymous codon variants
+       
+      ncodons<-as.list(strsplit(tocut,",")[[1]])
+
+      #for each synonymous codon at position check orfdf for probabilities at each position
+        
+      for (num_codons in 1:length(ncodons))
+        {
+         
+        toadd<-(ncodons[[num_codons]])
+         
+        df_output[output_row,paste0("C",num_codons)]<-toadd
+         
+        #split each codon into bases
+         
+        bases_resolve<-as.list(strsplit(toadd,"")[[1]])
+        p1lc<-tolower(bases_resolve[[1]])
+        p2lc<-tolower(bases_resolve[[2]])
+        p3lc<-tolower(bases_resolve[[3]])
+          
+        prob1<-orfdf[output_row,paste0("p1",p1lc)]
+        prob2<-orfdf[output_row,paste0("p2",p2lc)]
+        prob3<-orfdf[output_row,paste0("p3",p3lc)] 
+        pc<-as.double(prob1*prob2*prob3)
+        df_output[output_row,paste0("V",num_codons)]<-pc
+        }
+
+      }
+    #Up to about here to create df_output dataframe. Can we split in two here.
+    #write_tsv(df_output, paste0("4041test/",region_gene,"df_output_check.tsv"))
+    #have checked these files and they seem ok
+
+
+    for(r_length2 in 1:length(df_results_by_codon$AA))  
+  
+      {  
+
+  
+      #designate a codon to query df_results dataframe with
+      codon_q<-(df_results_by_codon$codon[r_length2])
+      sum_codon_values<-as.double(0)
+  
+      #loop through the reading frame
+  
+      for (j in 1:length(df_output$C1))
+        {
+    
+        # loop through the columns   
+        for (sum_rows in 1:6)
+          {
+          #    print(k)
+          q_k<-paste0("df_output$C",sum_rows,"[j]")
+    
+        
+        
+          if (eval(parse(text=q_k))==codon_q) 
+       
+          # add to sum values
+            {
+            #print (region_gene)
+            #print (codon_q)
+            #print (eval(parse(text=q_k)))
+            #print(sum_codon_values)
+            q_v<-paste0("sum_codon_values+df_output$V",sum_rows,"[j]")
+            sum_codon_values<-as.integer(eval(parse(text=q_v)))
+            }
+          else
+            {sum_codon_values<-sum_codon_values+0} 
+          #TRYING as.integer
+        
+          # total of the values to results table
+    
+          }
+  
+    
+        }
+      #print(sum_codon_values)
+      #here to by orf
+  
+  
+  
+      df_results_by_codon$codon_count[r_length2]<-sum_codon_values
+      }
+
+    #write_tsv(df_results_by_codon,paste0("4041test/","checking",region_gene,"df_results_by_codon.tsv"))
+
+
+    #  Need to make function/loop  to use  for total of all syn codons
+  
+
+
+
+
+
+    #Fill in synonymous codon sum
+    for (z in 1:length(df_results_by_codon$codon) )
+      {
+      index <- df_results_by_codon$AA[z]  
+      sum<-sum(df_results_by_codon[which(df_results_by_codon$AA==index),"codon_count"])
+      # (orfdf[, 2], syn_codons, stringsAsFactors = FALSE) 
+      df_results_by_codon$syn_sum[z]<-sum
+
+      #Then make a new column with the resulting RSCU
+
+      RSCU_vector<-df_results_by_codon$codon_count/df_results_by_codon$syn_sum
+
+      #df_results_by_codon$syn_count<-as.double(as.character()df_results_by_codon$syn_count)
+
+      df_results_by_codon$syn_count<-as.integer(df_results_by_codon$syn_count)
+
+      #TRYING as.integer as this should be a count of discrete number of reads
+
+      RSCU_vector<-RSCU_vector*df_results_by_codon$syn_count
+
+      #  this thing paste0(thisorf,"RSCU")
+
+      current_RSCU<-paste0(thisorf,"RSCU")
+
+      eval(parse(text = paste0("df_results_by_codon$",current_RSCU,"<-RSCU_vector")))
+
+
+
+
+
+      #could write to results by codon dataframe with with columns for each region?
+      #Have to make results by codon outside region loop
+      } 
+    }
+  
+  #Save files
+  savefile<-gsub("../Codon Bias Data/in vivo/d4um","",workingfile)
+  write.csv(df_results_by_codon, paste0("vivo/d4um/",savefile,"modfinalRSCU.csv"), row.names=FALSE, quote=FALSE)     
+  #write_tsv(df_output, paste0(workingfile,"modoutput.tsv"))   
+      
+
+  }
+
+```
+
+```{r}
+#This will merge file columns for data 
+
+df_merge_orf1<-data.frame(1:64)
+df_merge_orf2<-data.frame(1:64)
+df_merge_n1<-data.frame(1:64)
+df_merge_n2<-data.frame(1:64)
+df_merge_n3<-data.frame(1:64)
+df_merge_n4<-data.frame(1:64)
+df_merge_c<-data.frame(1:64)
+df_merge_e1<-data.frame(1:64)
+df_merge_e2<-data.frame(1:64)
+df_merge_e3<-data.frame(1:64)
+df_merge_6k<-data.frame(1:64)
+df_merge_tf<-data.frame(1:64)
+names_merged<-c("68U201_1","68U201_2","68U201_3","7135_1","7135_2","7135_3","7140_1","7140_2","7140_3","7141_1","7141_2","7141_3")
+
+batchname <- "snps/Vero"
+
+for (merger in 1:12)
+
+
+  {
+  file_to_merge<-read.csv(file.choose(), header=TRUE)
+  
+  df_merge_orf1[merger]<-c(file_to_merge[6])
+    
+  df_merge_orf2[merger]<-c(file_to_merge[7])
+
+  
+  df_merge_n1[merger]<-c(file_to_merge[9])
+  
+  
+  df_merge_n2[merger]<-c(file_to_merge[10])
+  
+  
+  df_merge_n3[merger]<-c(file_to_merge[11])
+ 
+  
+  df_merge_n4[merger]<-c(file_to_merge[12])
+  
+  
+  df_merge_c[merger]<-c(file_to_merge[13])
+  
+  
+  df_merge_e1[merger]<-c(file_to_merge[14])
+ 
+  
+  df_merge_e2[merger]<-c(file_to_merge[15])
+  
+  
+  df_merge_e3[merger]<-c(file_to_merge[16])
+  
+  
+  df_merge_6k[merger]<-c(file_to_merge[17])
+
+  
+  df_merge_tf[merger]<-c(file_to_merge[18])
+  
+  
+  
+  
+}
+  colnames(df_merge_orf1)<-names_merged
+  colnames(df_merge_orf2)<-names_merged
+  colnames(df_merge_n1)<-names_merged
+  colnames(df_merge_n2)<-names_merged
+  colnames(df_merge_n3)<-names_merged
+  colnames(df_merge_n4)<-names_merged
+  colnames(df_merge_c)<-names_merged
+  colnames(df_merge_e1)<-names_merged
+  colnames(df_merge_e2)<-names_merged
+  colnames(df_merge_e3)<-names_merged
+  colnames(df_merge_6k)<-names_merged
+  colnames(df_merge_tf)<-names_merged
+     
+write.csv(df_merge_orf1, file="veroorf1merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_orf2, file="veroorf2merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_n1, file="veron1merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_n2, file="veron2merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_n3, file="veron3merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_n4, file="veron4merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_c, file="verocmerge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_e1, file="veroe1merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_e2, file="veroe2merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_e3, file="veroe3merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_6k, file="vero6kmerge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_tf, file="verotfmerge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+
+
+
+
+
+
+
+#files_to_merge<-choose.files(default = "", caption = "Select files",
+#             multi = TRUE, filters = Filters,
+#             index = nrow(Filters))
+```
+```{r}
+#This will merge file columns for data 
+
+df_merge_orf1<-data.frame(1:64)
+df_merge_orf2<-data.frame(1:64)
+df_merge_n1<-data.frame(1:64)
+df_merge_n2<-data.frame(1:64)
+df_merge_n3<-data.frame(1:64)
+df_merge_n4<-data.frame(1:64)
+df_merge_c<-data.frame(1:64)
+df_merge_e1<-data.frame(1:64)
+df_merge_e2<-data.frame(1:64)
+df_merge_e3<-data.frame(1:64)
+df_merge_6k<-data.frame(1:64)
+df_merge_tf<-data.frame(1:64)
+names_merged<-c("d19_1","d19_2","d19_3,d19_4","d19_5","d19_6,d19_7","d19_8","d19_9","d19_10","d19_11","d19_12","d19_13")
+
+batchname <- "vivo/d19"
+
+for (merger in 1:13)
+
+
+  {
+  file_to_merge<-read.csv(file.choose(), header=TRUE)
+  
+  df_merge_orf1[merger]<-c(file_to_merge[6])
+    
+  df_merge_orf2[merger]<-c(file_to_merge[7])
+
+  
+  df_merge_n1[merger]<-c(file_to_merge[9])
+  
+  
+  df_merge_n2[merger]<-c(file_to_merge[10])
+  
+  
+  df_merge_n3[merger]<-c(file_to_merge[11])
+ 
+  
+  df_merge_n4[merger]<-c(file_to_merge[12])
+  
+  
+  df_merge_c[merger]<-c(file_to_merge[13])
+  
+  
+  df_merge_e1[merger]<-c(file_to_merge[14])
+ 
+  
+  df_merge_e2[merger]<-c(file_to_merge[15])
+  
+  
+  df_merge_e3[merger]<-c(file_to_merge[16])
+  
+  
+  df_merge_6k[merger]<-c(file_to_merge[17])
+
+  
+  df_merge_tf[merger]<-c(file_to_merge[18])
+  
+  
+  
+  
+}
+  colnames(df_merge_orf1)<-names_merged
+  colnames(df_merge_orf2)<-names_merged
+  colnames(df_merge_n1)<-names_merged
+  colnames(df_merge_n2)<-names_merged
+  colnames(df_merge_n3)<-names_merged
+  colnames(df_merge_n4)<-names_merged
+  colnames(df_merge_c)<-names_merged
+  colnames(df_merge_e1)<-names_merged
+  colnames(df_merge_e2)<-names_merged
+  colnames(df_merge_e3)<-names_merged
+  colnames(df_merge_6k)<-names_merged
+  colnames(df_merge_tf)<-names_merged
+     
+write.csv(df_merge_orf1, file="d19orf1merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_orf2, file="d19orf2merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_n1, file="d19n1merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_n2, file="d19n2merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_n3, file="d19n3merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_n4, file="d19n4merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_c, file="d19cmerge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_e1, file="d19e1merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_e2, file="d19e2merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_e3, file="d19e3merge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_6k, file="d196kmerge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+write.csv(df_merge_tf, file="d19tfmerge.csv", row.names=TRUE, sep=',',col.names=TRUE)
+
+
+
+
+
+
+
+
+#files_to_merge<-choose.files(default = "", caption = "Select files",
+#             multi = TRUE, filters = Filters,
+#             index = nrow(Filters))
+```
+
+
+
+```{r}
+# Don't need this 
+basetrifreqorf1 <-trinucleotideFrequency(trans1, step=1,
+as.prob=FALSE, as.array=FALSE,
+fast.moving.side="right", with.labels=TRUE)
+
+print (basetrifreqorf1)
+
+basetrifreqorf2 <-trinucleotideFrequency(trans2, step=1,
+as.prob=FALSE, as.array=FALSE,
+fast.moving.side="right", with.labels=TRUE)
+
+print (basetrifreqorf2)
+
+# define table  will need 64+1 column, extra probably 3 x 64 +1
+#strtest <- strsplit(trans1x,split="")
+#orf1table <- data.table(trans1x) 
+#for i in 
+```
+
+
+
+```
+
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+2
