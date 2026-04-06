@@ -1,0 +1,42 @@
+{
+  "files": [
+    {
+      "label": "d1",
+      "path": "./d1mg/orf1mergenewd1.csv"
+    },
+    {
+      "label": "d4",
+      "path": "./d4/orf1mergenewd4.csv"
+    },
+    {
+      "label": "d8",
+      "path": "./d8/orf1mergenewd8.csv"
+    },
+    {
+      "label": "d12",
+      "path": "./d12/orf1mergenewd12.csv"
+    },
+    {
+      "label": "d19",
+      "path": "./d19/orf1mergenewd19.csv"
+    }
+  ],
+  "plot": {
+    "x_label": "Principal Component - 1",
+    "y_label": "Principal Component - 2",
+    "title": "Principal Component Analysis of RSCU data\nNon-Structural ORF",
+    "figsize": [10, 10]
+  },
+  "codons": {
+    "index": [
+      "GCT","GCC","GCA","GCG","CGT","CGC","CGA","CGG","AGA","AGG",
+      "AAT","AAC","GAT","GAC","TGT","TGC","CAA","CAG","GAA","GAG",
+      "GGT","GGC","GGA","GGG","CAT","CAC","ATT","ATC","ATA","CTT",
+      "CTC","CTA","CTG","TTA","TTG","AAA","AAG","ATG","TTT","TTC",
+      "CCT","CCC","CCA","CCG","TCA","TCC","TCT","TCG","AGT","AGC",
+      "ACA","ACT","ACG","ACC","TGG","TAC","TAT","GTA","GTC","GTT",
+      "GTG","TGA","TAG","TAA"
+    ],
+    "drop": ["TGA", "TAG", "TAA", "ATG", "TGG"]
+  }
+}
