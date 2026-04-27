@@ -2,23 +2,28 @@
   "files": [
     {
       "label": "d1",
-      "path": "./d1mg/orf1mergenewd1.csv"
+      "path": "./d1mg/orf1mergenewd1.csv",
+      "orientation": "wide"
     },
     {
       "label": "d4",
-      "path": "./d4/orf1mergenewd4.csv"
+      "path": "./d4/orf1mergenewd4.csv",
+      "orientation": "wide"
     },
     {
       "label": "d8",
-      "path": "./d8/orf1mergenewd8.csv"
+      "path": "./d8/orf1mergenewd8.csv",
+      "orientation": "auto"
     },
     {
       "label": "d12",
-      "path": "./d12/orf1mergenewd12.csv"
+      "path": "./d12/orf1mergenewd12.csv",
+      "orientation": "wide"
     },
     {
       "label": "d19",
-      "path": "./d19/orf1mergenewd19.csv"
+      "path": "./d19/orf1mergenewd19.csv",
+      "orientation": "narrow"
     }
   ],
   "plot": {
@@ -28,14 +33,28 @@
     "figsize": [10, 10]
   },
   "codons": {
-    "index": [
-      "GCT","GCC","GCA","GCG","CGT","CGC","CGA","CGG","AGA","AGG",
-      "AAT","AAC","GAT","GAC","TGT","TGC","CAA","CAG","GAA","GAG",
-      "GGT","GGC","GGA","GGG","CAT","CAC","ATT","ATC","ATA","CTT",
-      "CTC","CTA","CTG","TTA","TTG","AAA","AAG","ATG","TTT","TTC",
-      "CCT","CCC","CCA","CCG","TCA","TCC","TCT","TCG","AGT","AGC",
-      "ACA","ACT","ACG","ACC","TGG","TAC","TAT","GTA","GTC","GTT",
-      "GTG","TGA","TAG","TAA"
+        "index": [
+      "GCT", "GCC", "GCA", "GCG",
+      "CGT", "CGC", "CGA", "CGG", "AGA", "AGG",
+      "AAT", "AAC",
+      "GAT", "GAC",
+      "TGT", "TGC",
+      "CAA", "CAG",
+      "GAA", "GAG",
+      "GGT", "GGC", "GGA", "GGG",
+      "CAT", "CAC",
+      "ATT", "ATC", "ATA",
+      "CTT", "CTC", "CTA", "CTG", "TTA", "TTG",
+      "AAA", "AAG",
+      "ATG",
+      "TTT", "TTC",
+      "CCT", "CCC", "CCA", "CCG",
+      "TCA", "TCC", "TCT", "TCG", "AGT", "AGC",
+      "ACA", "ACT", "ACG", "ACC",
+      "TGG",
+      "TAC", "TAT",
+      "GTA", "GTC", "GTT", "GTG",
+      "TGA", "TAG", "TAA"
     ],
     "drop": ["TGA", "TAG", "TAA", "ATG", "TGG"]
   }
