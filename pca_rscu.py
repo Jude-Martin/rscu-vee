@@ -9,6 +9,8 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 
+# to run use followiong format or run from bash cript with venv   python pca_rscu.py --config config.json --output pca_output.csv
+
 def load_config(config_path):
     with open(config_path, "r", encoding="utf-8") as f:
         return json.load(f)
